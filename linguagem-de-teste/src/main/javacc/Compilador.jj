@@ -1,0 +1,78 @@
+options {
+STATIC = false;
+}
+
+PARSER_BEGIN(Compilador)
+
+package dev.napoleon;
+
+public class Compilador {
+
+}
+
+PARSER_END(Compilador)
+
+//Analisador Léxico
+SKIP : { " " | "\t" | "\r" | "\n" }
+
+//Operadores Aritméticos
+TOKEN : {
+      < SOMA : "+" > 
+    | < SUB : "-" >
+    | < MULT : "*" >
+    | < DIV : "/" > 
+    | < APAR : "(" >
+    | < FPAR : ")" >
+}
+
+//Literais
+TOKEN : {
+    < NUMERO : (["0"-"9"])+ >
+}
+
+//Analisador Sintático e Semântico
+double Start() :
+{ double resultado; }
+{
+    resultado = Expressao() <EOF>
+    { return resultado; }
+}
+
+//Soma e Subtração
+double Expressao() :
+{ double valor1, valor2; }
+{
+    valor1 = Termo()
+    (
+        <SOMA> valor2 = Termo() { valor1 = valor1 + valor2; } 
+        | <SUB> valor2 = Termo() { valor1 = valor1 - valor2; }
+    )*
+    { return valor1; }
+}
+
+//Multiplicação e Divisão
+double Termo() :
+{ double valor1, valor2; }
+{
+    valor1 = Fator() 
+    (
+        <MULT> valor2 = Fator() { valor1 = valor1 * valor2; } 
+        | <DIV> valor2 = Fator() { valor1 = valor1 / valor2; }
+    )*
+    { return valor1; }
+}
+
+//Ordem de Precedência
+double Fator() : 
+{ double valor; Token t; }
+{
+    <APAR> valor = Expressao() <FPAR>
+    { return valor; } 
+    | t = <NUMERO>
+    { return Double.parseDouble(t.image); }
+}
+
+
+
+
+
