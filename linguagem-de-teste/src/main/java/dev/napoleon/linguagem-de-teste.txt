@@ -1,0 +1,4 @@
+inteiro x = 10;
+real y = 20.10;
+inteiro z = 2;
+x + y / z

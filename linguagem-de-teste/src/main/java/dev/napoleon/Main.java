@@ -1,25 +1,23 @@
 package dev.napoleon;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Path;
+
 public class Main {
-
     public static void main(String[] args) {
+        
+        Path arquivoCodigo = Path.of("linguagem-de-teste", "src", "main", "java", "dev", "napoleon", "linguagem-de-teste.txt");
 
-        try {
-            System.out.println("________________________________");
-            System.out.println("Compilador iniciado com sucesso!");
-            System.out.println("Digite uma expressão aritmética simples + Enter e Ctrl+Z (windows) | Ctrl+D (Linux) para sair: ");
-            Compilador parser = new Compilador(System.in);
-            double resultado = parser.Start();
-            System.out.printf("Resultado: %.2f %n", resultado);
-            System.out.println("________________________________"); 
-        } catch (TokenMgrError e) {
-            System.out.println("SÍMBOLO INVÁLIDO: " + e.getMessage());
-            System.out.println("________________________________");
-        } catch (ParseException e) {
-            System.out.println("EXPRESSÃO INVÁLIDA: " + e.getMessage());
-            System.out.println("________________________________");
+        Compilador.variaveis.clear();
+
+        try (InputStream entrada = new FileInputStream(arquivoCodigo.toFile())) {
+            Compilador compilador = new Compilador(entrada);
+            double resultado = compilador.Start();
+            System.out.println("Resultado: " + resultado);
+        } catch (Exception e) {
+            System.err.println("Erro ao compilar/executar: " + e.getMessage());
+            e.printStackTrace();
         }
-
     }
-    
 }

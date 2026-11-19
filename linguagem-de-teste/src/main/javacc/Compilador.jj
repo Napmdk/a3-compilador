@@ -5,8 +5,12 @@ STATIC = false;
 PARSER_BEGIN(Compilador)
 
 package dev.napoleon;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Compilador {
+
+    public static Map<String, Double> variaveis = new HashMap<>();
 
 }
 
@@ -15,30 +19,78 @@ PARSER_END(Compilador)
 //Analisador Léxico
 SKIP : { " " | "\t" | "\r" | "\n" }
 
-//Operadores Aritméticos
+//Literais (privados)
 TOKEN : {
-      < SOMA : "+" > 
-    | < SUB : "-" >
-    | < MULT : "*" >
-    | < DIV : "/" > 
-    | < APAR : "(" >
-    | < FPAR : ")" >
+    < #DIGITO : ["0"-"9"] >
+    | < #LETRA_MIN : ["a"-"z"] >
+    | < #LETRA_MAI : ["A"-"Z"] >
 }
 
-//Literais
+//Números
 TOKEN : {
-    < NUMERO : (["0"-"9"])+ >
+    < NUMERO_REAL : (<DIGITO>)+ ("." (<DIGITO>)+) >
+    | < NUMERO_INT : (<DIGITO>)+ >
+}
+
+//Operadores Aritméticos (literais)
+TOKEN : {
+      < SOMA : "+" > 
+      | < SUB : "-" >
+      | < MULT : "*" >
+      | < DIV : "/" > 
+      | < APAR : "(" >
+      | < FPAR : ")" >
+}
+
+//Literais da linguagem
+TOKEN : {
+     < DEC_TIPO_INT : "inteiro">
+    | < DEC_TIPO_REAL : "real">
+    | < ATRIB : "=" >
+    | < FIM_INST : ";" >
+    | < COND_SE : "se" >
+    | < COND_SE_NAO : "se_nao" >
+}
+
+//Identificadores
+TOKEN : {
+    <IDENTIFICADOR : (<LETRA_MIN> | <LETRA_MAI>)+ (<LETRA_MIN> | <LETRA_MAI>)* >
 }
 
 //Analisador Sintático e Semântico
 double Start() :
 { double resultado; }
 {
+    (Declaracao() 
+    | LOOKAHEAD({ getToken(1).kind == IDENTIFICADOR && getToken(2).kind == ATRIB }) Atribuicao()
+    )*
     resultado = Expressao() <EOF>
     { return resultado; }
 }
 
-//Soma e Subtração
+//Declaração de variáveis (tipo int ou double)
+void Declaracao() :
+{ Token id; double valor = 0.0; }
+{
+    (<DEC_TIPO_INT> | <DEC_TIPO_REAL>) id = <IDENTIFICADOR> 
+    (<ATRIB> valor = Expressao())? <FIM_INST>
+    { variaveis.put(id.image, valor); }
+}
+
+//Atribuição
+void Atribuicao() :
+{ Token id; double valor; }
+{
+    id = <IDENTIFICADOR> <ATRIB> valor = Expressao() <FIM_INST>
+    {
+        if (!variaveis.containsKey(id.image)) {
+            throw new RuntimeException("Variável não declarada: " + id.image);
+        }
+        variaveis.put(id.image, valor); 
+    }
+}
+
+//expressao = termo, {("+"|"-"), termo};
 double Expressao() :
 { double valor1, valor2; }
 {
@@ -50,7 +102,7 @@ double Expressao() :
     { return valor1; }
 }
 
-//Multiplicação e Divisão
+//termo = termo, {("*"|"/"), termo};
 double Termo() :
 { double valor1, valor2; }
 {
@@ -62,14 +114,21 @@ double Termo() :
     { return valor1; }
 }
 
-//Ordem de Precedência
+//fator = numero|"(", expressao, ")";
 double Fator() : 
 { double valor; Token t; }
 {
     <APAR> valor = Expressao() <FPAR>
     { return valor; } 
-    | t = <NUMERO>
+    | (t = <NUMERO_REAL> | t = <NUMERO_INT>)
     { return Double.parseDouble(t.image); }
+    | t = <IDENTIFICADOR>
+    {
+        if (!variaveis.containsKey(t.image)) {
+            throw new RuntimeException("Variável não declarada: " + t.image);
+        }
+        return variaveis.get(t.image); 
+    }
 }
 
 
