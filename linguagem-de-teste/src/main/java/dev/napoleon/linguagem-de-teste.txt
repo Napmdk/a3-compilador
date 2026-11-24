@@ -1,4 +1,6 @@
-inteiro x = 10;
-real y = 20.10;
-inteiro z = 2;
-x + y / z
+inteiro x = 1;
+inteiro y = 2;
+inteiro z = 3;
+real w = 2.2;
+real v = 3.2;
+y / x * (z + w) - v
