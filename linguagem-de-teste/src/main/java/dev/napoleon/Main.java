@@ -11,8 +11,7 @@ public class Main {
 
         try (InputStream entrada = new FileInputStream(arquivoCodigo.toFile())) {
             Compilador compilador = new Compilador(entrada);
-            double resultado = compilador.Start();
-            System.out.println("Resultado: " + resultado);
+            compilador.Start();
         } catch (Exception e) {
             System.err.println("Erro ao compilar/executar - " + e.getMessage());
         }

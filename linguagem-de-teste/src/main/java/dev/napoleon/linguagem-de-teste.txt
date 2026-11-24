@@ -1,6 +1,18 @@
-inteiro x = 1;
-inteiro y = 2;
-inteiro z = 3;
-real w = 2.2;
-real v = 3.2;
-y / x * (z + w) - v
+inteiro x = 3;
+real y = 2.0;
+inteiro z = 5;
+real resultado = (x + y) * z;
+escreva resultado;
+
+inteiro valor1;
+leia valor1;
+
+real valor2;
+leia valor2;
+
+inteiro valorTeste;
+leia valorTeste;
+
+escreva (valor1 - valor2) / valorTeste;
+
+end;

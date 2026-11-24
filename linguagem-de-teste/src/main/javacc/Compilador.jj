@@ -9,12 +9,39 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Locale;
+import java.util.Scanner;
 
 public class Compilador {
 
     //Mapa para guardar as variáveis da linguagem
     public Map<String, Double> variaveis = new HashMap<>();
     public Set<String> variaveisInteiras = new HashSet<>();
+
+    private Scanner entrada = new Scanner(System.in).useLocale(Locale.US);
+
+    public double avaliadorExpressaoDigitada(String linha, Token id) {
+        if (linha == null || linha.trim().isEmpty()) {
+            throw new RuntimeException(
+            "[Linha " + id.beginLine + " coluna " + id.beginColumn +
+            "]: Expressão vazia para a variável '" + id.image + "'"
+        );
+        }
+        Compilador avaliador = new Compilador(new java.io.StringReader(linha));
+        avaliador.variaveis = this.variaveis;
+        avaliador.variaveisInteiras = this.variaveisInteiras;
+        avaliador.entrada = this.entrada;
+
+        try {
+            return avaliador.Expressao();
+        } catch (ParseException e) {
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Expressão inválida digitada para '" + id.image + "': " + linha.trim()
+        );
+        } catch (TokenMgrError e) {
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Token inválido na expressão digitada para '" + id.image + "': " + linha.trim()
+        );
+        }
+    }
 
 }
 
@@ -55,6 +82,9 @@ TOKEN : {
     | < FIM_INST : ";" >
     | < COND_SE : "se" >
     | < COND_SE_NAO : "se_nao" >
+    | < FIM_DA_ANALISE : "end" >
+    | < LER : "leia" >
+    | < ESCREVER : "escreva" >
 }
 
 //Identificador
@@ -64,12 +94,15 @@ TOKEN : {
 
 //Analisador Sintático e Semântico
 double Start() :
-{ double resultado; }
+{ double resultado = 0.0; }
 {
     (Declaracao() 
     | LOOKAHEAD({ getToken(1).kind == IDENTIFICADOR && getToken(2).kind == ATRIB }) Atribuicao()
+    | resultado = Expressao() <FIM_INST>
+    | Ler()
+    | Escrever()
     )*
-    resultado = Expressao() <EOF>
+     <FIM_DA_ANALISE> <FIM_INST> <EOF>
     { return resultado; }
 }
 
@@ -80,6 +113,7 @@ void Declaracao() :
     DeclaracaoInt() | DeclaracaoReal()
 }
 
+//Declaração de número inteiro
 void DeclaracaoInt() :
 { Token id; double valor = 0.0; boolean temValor = false; }
 {
@@ -99,6 +133,7 @@ void DeclaracaoInt() :
     }
 }
 
+//Declaração de número real
 void DeclaracaoReal() :
 { Token id; double valor = 0.0; }
 {
@@ -168,6 +203,52 @@ double Fator() :
             throw new RuntimeException("[Linha " + t.beginLine + " coluna " + t.beginColumn + "]: Variável não declarada: " + t.image);
         }
         return variaveis.get(t.image); 
+    }
+}
+
+//Leitura
+void Ler() :
+{ Token id; }
+{
+    <LER> id = <IDENTIFICADOR> <FIM_INST>
+    {
+        if (!variaveis.containsKey(id.image)) {
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável não declarada: " + id.image);
+        }
+
+        System.out.print("Digite um valor para a variável - " + id.image + ": ");
+
+        String linha = "";
+        while (entrada.hasNextLine()) {
+            linha = entrada.nextLine();
+            if (!linha.trim().isEmpty()) {
+                break;
+            }
+        }
+
+        double valorAvaliado = avaliadorExpressaoDigitada(linha, id);
+
+        if (variaveisInteiras.contains(id.image) && valorAvaliado % 1 != 0) {
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável do tipo inteiro (" + id.image + ") não aceita valor real: " + valorAvaliado
+            );
+        }
+
+        variaveis.put(id.image, valorAvaliado);
+    }
+
+}
+
+//Escrita
+void Escrever() :
+{ double valor; }
+{
+    <ESCREVER> valor = Expressao() <FIM_INST>
+    {
+        if (valor % 1 == 0) {
+            System.out.println((long) valor);
+        } else {
+            System.out.println(valor);
+        }
     }
 }
 
