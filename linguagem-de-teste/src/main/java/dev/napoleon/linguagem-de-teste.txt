@@ -94,7 +94,6 @@ w = 3;
 
 //Laço de repetição:
 //real i = 0;
-
 //enquanto (i < 5) {
 //    i = i + 1;
 //    escreva i;
