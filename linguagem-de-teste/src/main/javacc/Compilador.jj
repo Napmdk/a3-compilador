@@ -14,32 +14,63 @@ import java.util.Scanner;
 
 public class Compilador {
 
-    //Mapa para guardar as variáveis da linguagem
     public Map<String, Double> variaveis = new HashMap<>();
-    public Set<String> variaveisInteiras = new HashSet<>();
 
     private Scanner entrada = new Scanner(System.in).useLocale(Locale.US);
 
+
     public double avaliadorExpressaoDigitada(String linha, Token id) {
         if (linha == null || linha.trim().isEmpty()) {
-            throw new RuntimeException(
-            "[Linha " + id.beginLine + " coluna " + id.beginColumn +
-            "]: Expressão vazia para a variável '" + id.image + "'"
-        );
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Expressão vazia para a variável '" + id.image + "'");
         }
+
         Compilador avaliador = new Compilador(new java.io.StringReader(linha));
         avaliador.variaveis = this.variaveis;
-        avaliador.variaveisInteiras = this.variaveisInteiras;
         avaliador.entrada = this.entrada;
 
         try {
-            return avaliador.Expressao();
+            double valor = avaliador.Expressao();
+            if (avaliador.getNextToken().kind != EOF) {
+                throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Expressão inválida ou sobra de entrada para '" + id.image + "': " + linha.trim());
+            }
+            return valor;
         } catch (ParseException e) {
-            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Expressão inválida digitada para '" + id.image + "': " + linha.trim()
-        );
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Expressão inválida digitada para '" + id.image + "': " + linha.trim());
         } catch (TokenMgrError e) {
-            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Token inválido na expressão digitada para '" + id.image + "': " + linha.trim()
-        );
+            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Token inválido na expressão digitada para '" + id.image + "': " + linha.trim());
+        }
+    }
+
+
+    public boolean avaliarCondicaoTexto(String condStr, Token tok) {
+        Compilador avaliador = new Compilador(new java.io.StringReader(condStr));
+        avaliador.variaveis = this.variaveis;
+        avaliador.entrada = this.entrada;
+
+        try {
+            boolean resultado = avaliador.Condicao();
+            if (avaliador.getNextToken().kind != EOF) {
+                throw new RuntimeException("[Linha " + tok.beginLine + " coluna " + tok.beginColumn + "]: Condição inválida ou sobra de tokens no 'enquanto'");
+            }
+            return resultado;
+        } catch (ParseException e) {
+            throw new RuntimeException("[Linha " + tok.beginLine + " coluna " + tok.beginColumn + "]: Erro de sintaxe na condição do 'enquanto': " + e.getMessage());
+        }
+    }
+
+
+    public void executarBlocoTexto(String blocoStr, boolean executar, Token tok) {
+        Compilador avaliador = new Compilador(new java.io.StringReader(blocoStr));
+        avaliador.variaveis = this.variaveis;
+        avaliador.entrada = this.entrada;
+
+        try {
+            avaliador.Bloco(executar);
+            if (avaliador.getNextToken().kind != EOF) {
+                throw new RuntimeException("[Linha " + tok.beginLine + " coluna " + tok.beginColumn + "]: Sobra inesperada após o bloco do 'enquanto'");
+            }
+        } catch (ParseException e) {
+            throw new RuntimeException("[Linha " + tok.beginLine + " coluna " + tok.beginColumn + "]: Erro de sintaxe dentro do bloco 'enquanto': " + e.getMessage());
         }
     }
 
@@ -48,7 +79,7 @@ public class Compilador {
 PARSER_END(Compilador)
 
 //Analisador Léxico
-SKIP : { " " | "\t" | "\r" | "\n" }
+SKIP : { " " | "\t" | "\r" | "\n" | < "//" (~["\r", "\n"])* >}
 
 //Literais (privados)
 TOKEN : {
@@ -58,13 +89,13 @@ TOKEN : {
     | < #SUBLINHADO : "_" >
 }
 
-//Números
+//Números (decimais e inteiros)
 TOKEN : {
     < NUMERO_REAL : (<DIGITO>)+ ("." (<DIGITO>)+) >
     | < NUMERO_INT : (<DIGITO>)+ >
 }
 
-//Operadores Aritméticos (literais)
+//Operadores Aritméticos 
 TOKEN : {
       < SOMA : "+" > 
       | < SUB : "-" >
@@ -74,17 +105,35 @@ TOKEN : {
       | < FPAR : ")" >
 }
 
+//Operadores relacionais
+TOKEN : {
+    < IGUALDADE : "==" >
+    | < DIFERENCA : "!=" >
+    | < MAIOR : ">" >
+    | < MENOR : "<" >
+    | < MAIOR_OU_IGUAL : ">=" >
+    | < MENOR_OU_IGUAL : "<=" >
+    | < ACHAV : "{" >
+    | <FCHAV : "}" >
+}
+
+//Operadores lógicos
+TOKEN : {
+    < E : "&" >
+    | < OU : "|" >
+}
+
 //Literais da linguagem
 TOKEN : {
-     < DEC_TIPO_INT : "inteiro">
-    | < DEC_TIPO_REAL : "real">
+     < DEC_TIPO_REAL : "real">
     | < ATRIB : "=" >
     | < FIM_INST : ";" >
     | < COND_SE : "se" >
-    | < COND_SE_NAO : "se_nao" >
+    | < COND_SENAO : "senao" >
     | < FIM_DA_ANALISE : "end" >
     | < LER : "leia" >
     | < ESCREVER : "escreva" >
+    | < ENQUANTO : "enquanto" >
 }
 
 //Identificador
@@ -96,49 +145,26 @@ TOKEN : {
 double Start() :
 { double resultado = 0.0; }
 {
-    (Declaracao() 
-    | LOOKAHEAD({ getToken(1).kind == IDENTIFICADOR && getToken(2).kind == ATRIB }) Atribuicao()
+    (Declaracao(true) 
+    | LOOKAHEAD({ getToken(1).kind == IDENTIFICADOR && getToken(2).kind == ATRIB }) Atribuicao(true)
     | resultado = Expressao() <FIM_INST>
-    | Ler()
-    | Escrever()
+    | Ler(true)
+    | Escrever(true)
+    | Condicional(true)
+    | Enquanto(true)
     )*
      <FIM_DA_ANALISE> <FIM_INST> <EOF>
     { return resultado; }
 }
 
-//Declaração de variáveis (tipo int ou double)
-void Declaracao() :
-{}
-{
-    DeclaracaoInt() | DeclaracaoReal()
-}
-
-//Declaração de número inteiro
-void DeclaracaoInt() :
-{ Token id; double valor = 0.0; boolean temValor = false; }
-{
-    <DEC_TIPO_INT> id = <IDENTIFICADOR> ( <ATRIB> valor = Expressao() { temValor = true; } )? <FIM_INST>
-    {
-        if (variaveis.containsKey(id.image)) {
-            throw new RuntimeException(
-                "[Linha " + id.beginLine + " coluna " + id.beginColumn +
-                "]: Variável já declarada: " + id.image
-            );
-        }
-        if (temValor && valor % 1 != 0) {
-            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável do tipo inteiro (" + id.image + ") não aceita valor real: " + valor);
-        }
-        variaveisInteiras.add(id.image);
-        variaveis.put(id.image, valor);
-    }
-}
-
-//Declaração de número real
-void DeclaracaoReal() :
+//Declaração de variáveis
+void Declaracao(boolean executar) :
 { Token id; double valor = 0.0; }
 {
     <DEC_TIPO_REAL> id = <IDENTIFICADOR> ( <ATRIB> valor = Expressao() )? <FIM_INST>
     {
+        if (!executar)
+        return;
         if (variaveis.containsKey(id.image)) {
             throw new RuntimeException(
                 "[Linha " + id.beginLine + " coluna " + id.beginColumn +
@@ -150,16 +176,15 @@ void DeclaracaoReal() :
 }
 
 //Atribuição
-void Atribuicao() :
+void Atribuicao(boolean executar) :
 { Token id; double valor; }
 {
     id = <IDENTIFICADOR> <ATRIB> valor = Expressao() <FIM_INST>
     {
+        if (!executar)
+        return;
         if (!variaveis.containsKey(id.image)) {
             throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável não declarada: " + id.image);
-        }
-        if (variaveisInteiras.contains(id.image) && valor % 1 != 0) {
-            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável do tipo inteiro (" + id.image + ") não aceita valor real: " + valor);
         }
         variaveis.put(id.image, valor); 
     }
@@ -207,11 +232,13 @@ double Fator() :
 }
 
 //Leitura
-void Ler() :
+void Ler(boolean executar) :
 { Token id; }
 {
     <LER> id = <IDENTIFICADOR> <FIM_INST>
     {
+        if (!executar)
+        return;
         if (!variaveis.containsKey(id.image)) {
             throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável não declarada: " + id.image);
         }
@@ -228,22 +255,19 @@ void Ler() :
 
         double valorAvaliado = avaliadorExpressaoDigitada(linha, id);
 
-        if (variaveisInteiras.contains(id.image) && valorAvaliado % 1 != 0) {
-            throw new RuntimeException("[Linha " + id.beginLine + " coluna " + id.beginColumn + "]: Variável do tipo inteiro (" + id.image + ") não aceita valor real: " + valorAvaliado
-            );
-        }
-
         variaveis.put(id.image, valorAvaliado);
     }
 
 }
 
 //Escrita
-void Escrever() :
+void Escrever(boolean executar) :
 { double valor; }
 {
     <ESCREVER> valor = Expressao() <FIM_INST>
     {
+        if (!executar)
+        return;
         if (valor % 1 == 0) {
             System.out.println((long) valor);
         } else {
@@ -252,7 +276,161 @@ void Escrever() :
     }
 }
 
+//Condicional
+boolean Condicao() :
+{ boolean r1, r2; }
+{
+    r1 = TermoLogico()
+    (
+        <OU> r2 = TermoLogico() { r1 = r1 || r2; }
+    )*
+    { return r1; }
+}
 
+boolean TermoLogico() :
+{ boolean r1, r2; }
+{
+    r1 = ExpRelacional()
+    (
+        <E> r2 = ExpRelacional() { r1 = r1 && r2; }
+    )*
+    { return r1; }
+}
 
+boolean ExpRelacional() :
+{ double exp1, exp2; boolean resultado = false; }
+{
+    exp1 = Expressao()
+      (
+          <IGUALDADE> exp2 = Expressao() { resultado = (exp1 == exp2); }
+          | <DIFERENCA> exp2 = Expressao() { resultado = (exp1 != exp2); }
+          | <MAIOR> exp2 = Expressao() { resultado = (exp1 > exp2); }
+          | <MENOR> exp2 = Expressao() { resultado = (exp1 < exp2); }
+          | <MAIOR_OU_IGUAL> exp2 = Expressao() { resultado = (exp1 >= exp2); }
+          | <MENOR_OU_IGUAL> exp2 = Expressao() { resultado = (exp1 <= exp2); }
+      )
+      { return resultado; }
+}
+
+void Bloco(boolean executar) :
+{}
+{
+    <ACHAV>
+    (
+        Declaracao(executar)
+        | LOOKAHEAD({ getToken(1).kind == IDENTIFICADOR && getToken(2).kind == ATRIB }) Atribuicao(executar)
+        | Condicional(executar)
+        | Ler(executar)
+        | Escrever(executar)
+        | Enquanto(executar)
+    )*
+    <FCHAV>
+}
+
+void Condicional(boolean executar) :
+{ boolean cond; boolean ramoExecutado = false; }
+{
+    <COND_SE> <APAR> cond = Condicao() <FPAR>
+    {
+        boolean rodarBlocoSe = executar && cond;
+        if (rodarBlocoSe) {
+            ramoExecutado = true;
+        }
+    }
+    Bloco(rodarBlocoSe)
+    (
+        LOOKAHEAD(<COND_SENAO> <COND_SE>)
+        <COND_SENAO> <COND_SE> <APAR> cond = Condicao() <FPAR>
+        {
+            boolean rodarSenaoSe = executar && !ramoExecutado && cond;
+            if (rodarSenaoSe) {
+                ramoExecutado = true;
+            }
+        }
+        Bloco(rodarSenaoSe)
+    )*
+    (
+        <COND_SENAO>
+        {
+            boolean rodarSenao = executar && !ramoExecutado;
+        }
+        Bloco(rodarSenao)
+    )?
+}
+
+//Laço de repetição 
+void Enquanto(boolean executar) :
+{
+    Token tokEnquanto;
+    String condStr;
+    String blocoStr;
+}
+{
+    tokEnquanto = <ENQUANTO>
+    condStr = capturarCondicaoEntreParenteses()
+    blocoStr = capturarBlocoEntreChaves()
+    {
+        boolean condicaoAtual = avaliarCondicaoTexto(condStr, tokEnquanto);
+        executarBlocoTexto(blocoStr, false, tokEnquanto);
+
+        if (!executar) return;
+
+        while (condicaoAtual) {
+            executarBlocoTexto(blocoStr, true, tokEnquanto);
+            condicaoAtual = avaliarCondicaoTexto(condStr, tokEnquanto);
+        }
+    }
+}
+
+JAVACODE
+String capturarCondicaoEntreParenteses() throws ParseException {
+    Token t = getNextToken();
+    if (t.kind != APAR) {
+        throw new ParseException("Esperado '(' após 'enquanto' na linha " + t.beginLine + ", coluna " + t.beginColumn);
+    }
+
+    StringBuilder sb = new StringBuilder();
+    int nivel = 1;
+
+    while (nivel > 0) {
+        t = getNextToken();
+        if (t.kind == EOF) {
+            throw new ParseException("Parêntese ')' não fechado na condição do 'enquanto'");
+        }
+        if (t.kind == APAR) {
+            nivel++;
+        } else if (t.kind == FPAR) {
+            nivel--;
+            if (nivel == 0) break;
+        }
+        sb.append(t.image).append(" ");
+    }
+    return sb.toString();
+}
+
+JAVACODE
+String capturarBlocoEntreChaves() throws ParseException {
+    Token t = getNextToken();
+    if (t.kind != ACHAV) {
+        throw new ParseException("Esperado '{' para abrir o bloco do 'enquanto' na linha " + t.beginLine + ", coluna " + t.beginColumn);
+    }
+
+    StringBuilder sb = new StringBuilder("{ ");
+    int nivel = 1;
+
+    while (nivel > 0) {
+        t = getNextToken();
+        if (t.kind == EOF) {
+            throw new ParseException("Chave '}' não fechada no bloco do 'enquanto'");
+        }
+        if (t.kind == ACHAV) {
+            nivel++;
+        } else if (t.kind == FCHAV) {
+            nivel--;
+        }
+        sb.append(t.image).append(" ");
+    }
+    return sb.toString();
+}
 
 

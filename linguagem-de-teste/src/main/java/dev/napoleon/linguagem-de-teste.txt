@@ -1,18 +1,105 @@
-inteiro x = 3;
-real y = 2.0;
-inteiro z = 5;
-real resultado = (x + y) * z;
-escreva resultado;
+//Ordem de precedência, declaração de variáveis e escrita: 
+real w = 10;
+real x = 5;
+real y = 3;
+real z = 2;
 
-inteiro valor1;
-leia valor1;
+//escreva x + y * z;
+//escreva w - y * z;
+//escreva (x + y) * z;
+//escreva x + y * z / 2;
 
-real valor2;
-leia valor2;
 
-inteiro valorTeste;
-leia valorTeste;
 
-escreva (valor1 - valor2) / valorTeste;
+//Instruções de entrada:
+//leia x;
+//leia y;
+
+//escreva x + y;
+
+
+
+//Estruturas condicionais:
+x = 2;
+y = 1;
+w = 3;
+
+//se (x > y) {
+//    escreva 10;
+//}
+
+//se (y > w) {
+//    escreva 20;
+//} senao {
+//    escreva 30;
+//}
+
+//se (y > x) {
+//    escreva 40;
+//} senao se (x > y) {
+//    escreva 50;
+//}
+
+
+
+//Operadores relacionais:
+//x = 1;
+//y = 2;
+//z = 2;
+
+//se (y == z) {
+//    escreva 10;
+//} senao {
+//    escreva 20;
+//}
+
+//se (x != y) {
+//    escreva 30;
+//} senao {
+//    escreva 40;
+//}
+
+//se (x >= z) {
+//    escreva 50;
+//} senao {
+//    escreva 60;
+//}
+
+//se (x <= z) {
+//    escreva 70;
+//} senao {
+//    escreva 80;
+//}
+
+
+
+//Operadores lógicos:
+//x = 1;
+//y = 2;
+//z = 3;
+
+//se (x > y | z > x) {
+//    escreva 10;
+//} senao {
+//    escreva 20;
+//}
+
+//se (x > y & z > x) {
+//    escreva 30;
+//} senao {
+//    escreva 40;
+//}
+
+
+
+//Laço de repetição:
+//real i = 0;
+
+//enquanto (i < 5) {
+//    i = i + 1;
+//    escreva i;
+//}
+
+
 
 end;
